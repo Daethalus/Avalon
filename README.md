@@ -106,3 +106,16 @@ target_link_libraries(MyTarget PRIVATE Avalon)
 ## License
 
 Avalon is released under the [MIT License](LICENSE).
+
+## LLM Usage
+
+Although I am not opposed to the use of LLMs, for this project that is focused in 
+learning and experimentation, I will do my best to keep the code developed and written 
+by myself
+
+Some areas I can use it:
+- Docs (like this [README](README.md))
+- Samples
+- Tests
+- Build configuration
+- Reformat code    
