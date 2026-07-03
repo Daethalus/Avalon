@@ -3,6 +3,7 @@
 
 #include <dxgi1_6.h>
 #include <d3d12.h>
+#include <vector>
 
 namespace Avalon
 {
@@ -27,5 +28,8 @@ namespace Avalon
 
 	protected:
 		~D3D12CommandList() override = default;
+
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> cacheHandles;
+		std::vector<ID3D12Resource*> resources;
 	};
 }

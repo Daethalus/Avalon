@@ -5,8 +5,12 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+#include "D3D12Types.hpp"
+
 namespace Avalon
 {
+	struct D3D12DescriptorAllocation;
+
 	class D3D12Device : public IDevice
 	{
 	public:
@@ -21,6 +25,21 @@ namespace Avalon
 
 		ISwapChain*   CreateSwapChain(const SwapchainDesc& swachainDesc) override;
 		ICommandList* CreateCommandList() override;
+
+		ID3D12Device10* GetDevice() const
+		{
+			return m_device;
+		}
+
+		D3D12DescriptorHeapAllocator& GetSRVHeap()
+		{
+			return m_srvHeap;
+		}
+
+		D3D12DescriptorHeapAllocator& GetRTVHeap()
+		{
+			return m_rtvHeap;
+		}
 
 	private:
 		std::vector<IAdapter*> m_adapters;
@@ -37,5 +56,8 @@ namespace Avalon
 		u64           m_fenceValue[AV_FRAMES_IN_FLIGHT] = {};
 		u64						m_nextFenceValue = {};
 		u32           m_frameIndex = 0;
+
+		D3D12DescriptorHeapAllocator m_srvHeap{};
+		D3D12DescriptorHeapAllocator m_rtvHeap{};
 	};
 }

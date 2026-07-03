@@ -82,6 +82,9 @@ namespace Avalon
 		m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&m_fence));
 		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+		m_srvHeap.Init(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 65536, true);
+		m_rtvHeap.Init(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1024, false);
+
 		spdlog::info("[D3D12] - D3D12Device initialized successfully with adapter '{}' ", selectedAdapter->Name());
 
 		return DeviceResult::Success;
@@ -93,6 +96,9 @@ namespace Avalon
 		{
 			DestroyAndFree(static_cast<D3D12Adapter*>(adapter));
 		}
+
+		m_srvHeap.Destroy();
+		m_rtvHeap.Destroy();
 
 		if (m_fence) m_fence->Release();
 		if (m_fenceEvent) CloseHandle(m_fenceEvent);
@@ -125,24 +131,11 @@ namespace Avalon
 		}
 
 		D3D12Swapchain* swapChain = Alloc<D3D12Swapchain>();
+		swapChain->m_device = this;
 		swapChain->m_desc = swachainDesc;
 		swapChain->m_swapChain = static_cast<IDXGISwapChain4*>(d3d12Swapchain);
 
-		for (int i = 0; i < D3D12Swapchain::BufferCount; ++i)
-		{
-			ID3D12Resource* renderTarget = nullptr;
-			if (FAILED(swapChain->m_swapChain->GetBuffer(i,IID_PPV_ARGS(&renderTarget))))
-			{
-				spdlog::error("[D3D12] - Error on SwapChain GetBuffer");
-				return nullptr;
-			}
-
-			D3D12Texture* texture = Alloc<D3D12Texture>();
-			texture->m_resource = renderTarget;
-			texture->CreateDefaultView();
-
-			swapChain->m_backBuffers[i] = texture;
-		}
+		swapChain->UpdateResources();
 		return swapChain;
 	}
 

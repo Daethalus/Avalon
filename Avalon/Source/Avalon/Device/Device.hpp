@@ -74,6 +74,7 @@ namespace Avalon
 	class ITextureView
 	{
 	public:
+		virtual void Destroy() = 0;
 	protected:
 		virtual ~ITextureView() = default;
 	};
@@ -108,6 +109,7 @@ namespace Avalon
 		virtual u32       AcquireNextImage() = 0;
 		virtual ITexture* GetBackBuffer(u32 index) = 0;
 
+		virtual void Resize(u32 width, u32 height) = 0;
 		virtual void Destroy() = 0;
 	protected:
 		virtual ~ISwapChain() = default;

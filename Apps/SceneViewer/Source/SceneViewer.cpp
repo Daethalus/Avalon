@@ -81,6 +81,21 @@ namespace Avalon
 					case SDL_EVENT_QUIT:
 						Shutdown();
 						break;
+
+					case SDL_EVENT_WINDOW_RESIZED:
+					{
+						if (width == event.window.data1 && height == event.window.data2)
+						{
+							break;
+						}
+
+						width = event.window.data1;
+						height = event.window.data2;
+
+						m_swapchain->Resize(width, height);
+						break;
+					}
+
 					default:
 						break;
 				}
@@ -97,7 +112,7 @@ namespace Avalon
 				.view = backBuffer->GetView(),
 				.loadOp = LoadOp::Clear,
 				.storeOp = StoreOp::Store,
-				.clearColor = {0.0, 0.2, 0.4, 1.0},
+				.clearColor = {0.39, 0.58, 0.92, 1.0},
 			};
 
 			cmd->BeginRenderPass(BeginRenderPassInfo{
