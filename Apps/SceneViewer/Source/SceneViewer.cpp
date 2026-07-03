@@ -5,6 +5,8 @@
 #include "Avalon/Device/IDevice.hpp"
 #include "spdlog/spdlog.h"
 
+constexpr bool enableDebugLayers = true;
+
 namespace Avalon
 {
 	void SceneViewer::Shutdown()
@@ -20,7 +22,7 @@ namespace Avalon
 			return 1;
 		}
 
-		if (m_device->Init() != DeviceResult::Success)
+		if (m_device->Init(enableDebugLayers) != DeviceResult::Success)
 		{
 			spdlog::error("Error initializing device");
 			return 1;
@@ -48,6 +50,33 @@ namespace Avalon
 
 		SDL_Window* window = SDL_CreateWindow("Avalon Scene viewer", 1920, 1080, sdlFlags);
 
+
+		i32 width, height;
+		SDL_GetWindowSize(window, &width, &height);
+
+		SDL_PropertiesID props = SDL_GetWindowProperties(window);
+
+		SwapchainDesc swapchainDesc = {};
+		swapchainDesc.width = width;
+		swapchainDesc.height = height;
+#ifdef AV_WIN
+		swapchainDesc.nativeWindow = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+#endif
+
+		m_swapchain = m_device->CreateSwapChain(swapchainDesc);
+		if (m_swapchain == nullptr)
+		{
+			return 1;
+		}
+
+		RenderPassDesc renderPassDesc = {};
+		m_renderPass = m_device->CreateRenderPass(renderPassDesc);
+
+		for (int i = 0; i < AV_FRAMES_IN_FLIGHT; ++i)
+		{
+			m_commands[i] = m_device->CreateCommandList();
+		}
+
 		spdlog::info("Avalon viewer initialized successfully");
 
 		while (m_running)
@@ -64,8 +93,38 @@ namespace Avalon
 						break;
 				}
 			}
+
+			ICommandList* cmd = m_commands[m_currentFrame];
+			cmd->Reset();
+
+			cmd->BeginRenderPass(BeginRenderPassInfo{
+				.renderPass = m_renderPass
+			});
+
+			ViewportInfo viewportInfo;
+			viewportInfo.width = width;
+			viewportInfo.height = height;
+			cmd->SetViewport(viewportInfo);
+			cmd->SetScissor(0, 0, width, height);
+
+			//TODO - draw commands
+
+			cmd->EndRenderPass();
+
+			cmd->Close();
+
+
+			m_device->SubmitAndPresent(cmd, m_swapchain);
+
+			m_currentFrame = (m_currentFrame + 1) % AV_FRAMES_IN_FLIGHT;
 		}
 
+		for (int i = 0; i < AV_FRAMES_IN_FLIGHT; ++i)
+		{
+			m_commands[i]->Destroy();
+		}
+
+		m_swapchain->Destroy();
 		m_device->Destroy();
 
 		SDL_DestroyWindow(window);

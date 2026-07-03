@@ -10,6 +10,21 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(spdlog)
 
+# mimalloc
+set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(MI_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(MI_BUILD_OBJECT OFF CACHE BOOL "" FORCE)
+set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    mimalloc
+    GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+    GIT_TAG v2.2.4
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(mimalloc)
+
 # SDL3 — only needed by the Apps
 if(AV_BUILD_APPS)
     set(SDL_SHARED OFF CACHE BOOL "" FORCE)

@@ -1,5 +1,6 @@
 #include "IDevice.hpp"
 
+#include "Avalon/Core/Allocator.hpp"
 #include "Avalon/Platform/Platform.hpp"
 #include "D3D12/D3D12Device.hpp"
 #include "spdlog/spdlog.h"
@@ -14,11 +15,10 @@ namespace Avalon
 		switch (deviceType)
 		{
 			// case DeviceType::Vulkan:
-			// 	*device = new VulkanDevice;
+			// 	*device = Alloc<VulkanDevice>();
 			// 	return DeviceResult::Success;
 			case DeviceType::D3D12:
-				//mimalloc
-				*device = new D3D12Device;
+				*device = Alloc<D3D12Device>();
 				return DeviceResult::Success;
 			default:
 				break;

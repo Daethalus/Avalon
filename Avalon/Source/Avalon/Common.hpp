@@ -25,3 +25,5 @@ typedef decltype(sizeof(0)) usize;
 	#define AV_WIN 1
 	#define AV_API __declspec(dllexport)
 #endif
+
+#define AV_FRAMES_IN_FLIGHT 2
