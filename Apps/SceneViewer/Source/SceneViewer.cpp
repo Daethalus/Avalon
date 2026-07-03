@@ -14,12 +14,28 @@ namespace Avalon
 
 	i32 SceneViewer::Run()
 	{
-		if (CreateDevice(DeviceType::Vulkan, &m_device) != DeviceResult::Success)
+		if (CreateDevice(DeviceType::None,  &m_device) != DeviceResult::Success)
 		{
 			spdlog::error("Error creating device");
 			return 1;
 		}
 
+		if (m_device->Init() != DeviceResult::Success)
+		{
+			spdlog::error("Error initializing device");
+			return 1;
+		}
+
+		for (IAdapter* adapter : m_device->Adapters())
+		{
+			spdlog::debug("[SceneViewer] - Available adapter {}", adapter->Name());
+		}
+
+		if (m_device->CreateDevice(nullptr) != DeviceResult::Success)
+		{
+			spdlog::error("Error selecting adapter");
+			return 1;
+		}
 
 		if (!SDL_Init(SDL_INIT_VIDEO))
 		{
@@ -31,7 +47,6 @@ namespace Avalon
 		sdlFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_MAXIMIZED;
 
 		SDL_Window* window = SDL_CreateWindow("Avalon Scene viewer", 1920, 1080, sdlFlags);
-
 
 		spdlog::info("Avalon viewer initialized successfully");
 
@@ -50,6 +65,8 @@ namespace Avalon
 				}
 			}
 		}
+
+		m_device->Destroy();
 
 		SDL_DestroyWindow(window);
 		SDL_Quit();
