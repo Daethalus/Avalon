@@ -1,5 +1,6 @@
 #include "D3D12Device.hpp"
 
+#include "D3D12CommandList.hpp"
 #include "D3D12Types.hpp"
 #include "Avalon/Core/Allocator.hpp"
 #include "spdlog/spdlog.h"
@@ -73,6 +74,14 @@ namespace Avalon
 			return DeviceResult::UnknownError;
 		}
 
+		for (int i = 0; i < AV_FRAMES_IN_FLIGHT; ++i)
+		{
+			m_commands[i] = CreateCommandList();
+		}
+
+		m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&m_fence));
+		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+
 		spdlog::info("[D3D12] - D3D12Device initialized successfully with adapter '{}' ", selectedAdapter->Name());
 
 		return DeviceResult::Success;
@@ -85,6 +94,8 @@ namespace Avalon
 			DestroyAndFree(static_cast<D3D12Adapter*>(adapter));
 		}
 
+		if (m_fence) m_fence->Release();
+		if (m_fenceEvent) CloseHandle(m_fenceEvent);
 		if (m_device != nullptr) m_device->Release();
 		if (m_factory != nullptr) m_factory->Release();
 		if (m_debug != nullptr) m_debug->Release();
@@ -98,7 +109,7 @@ namespace Avalon
 	{
 		DXGI_SWAP_CHAIN_DESC1 swapDesc = {};
 
-		swapDesc.BufferCount = 3;
+		swapDesc.BufferCount = D3D12Swapchain::BufferCount;
 		swapDesc.Width = swachainDesc.width;
 		swapDesc.Height = swachainDesc.height;
 		swapDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -106,20 +117,35 @@ namespace Avalon
 		swapDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapDesc.SampleDesc.Count = 1;
 
-		IDXGISwapChain1* swapChain = nullptr;
-		if (FAILED(m_factory->CreateSwapChainForHwnd(m_queue, static_cast<HWND>(swachainDesc.nativeWindow), &swapDesc, nullptr, nullptr, &swapChain)))
+		IDXGISwapChain1* d3d12Swapchain = nullptr;
+		if (FAILED(m_factory->CreateSwapChainForHwnd(m_queue, static_cast<HWND>(swachainDesc.nativeWindow), &swapDesc, nullptr, nullptr, &d3d12Swapchain)))
 		{
 			spdlog::error("[D3D12] - Error on CreateSwapChainForHwnd");
 			return nullptr;
 		}
 
-		return Alloc<D3D12Swapchain>(static_cast<IDXGISwapChain4*>(swapChain));
+		D3D12Swapchain* swapChain = Alloc<D3D12Swapchain>();
+		swapChain->m_desc = swachainDesc;
+		swapChain->m_swapChain = static_cast<IDXGISwapChain4*>(d3d12Swapchain);
+
+		for (int i = 0; i < D3D12Swapchain::BufferCount; ++i)
+		{
+			ID3D12Resource* renderTarget = nullptr;
+			if (FAILED(swapChain->m_swapChain->GetBuffer(i,IID_PPV_ARGS(&renderTarget))))
+			{
+				spdlog::error("[D3D12] - Error on SwapChain GetBuffer");
+				return nullptr;
+			}
+
+			D3D12Texture* texture = Alloc<D3D12Texture>();
+			texture->m_resource = renderTarget;
+			texture->CreateDefaultView();
+
+			swapChain->m_backBuffers[i] = texture;
+		}
+		return swapChain;
 	}
 
-	IRenderPass* D3D12Device::CreateRenderPass(const RenderPassDesc& renderPassDesc)
-	{
-		return nullptr;
-	}
 
 	ICommandList* D3D12Device::CreateCommandList()
 	{
@@ -142,20 +168,58 @@ namespace Avalon
 		commandList->Close();
 
 		return Alloc<D3D12CommandList>(allocator, commandList);
-
-	}
-
-	DeviceResultType D3D12Device::SubmitAndPresent(ICommandList* commandList, ISwapChain* swapChain)
-	{
-		ID3D12CommandList* lists[] = {static_cast<D3D12CommandList*>(commandList)->commandList};
-		m_queue->ExecuteCommandLists(1, lists);
-
-
-		return DeviceResult::Success;
 	}
 
 	std::span<IAdapter*> D3D12Device::Adapters()
 	{
 		return m_adapters;
+	}
+
+	void D3D12Device::WaitIdle()
+	{
+		u64 value = m_nextFenceValue++;
+		m_queue->Signal(m_fence, value);
+
+		if (m_fence->GetCompletedValue() < value)
+		{
+			m_fence->SetEventOnCompletion(value, m_fenceValue);
+			WaitForSingleObject(m_fenceValue, INFINITE);
+		}
+	}
+
+	ICommandList* D3D12Device::BeginFrame()
+	{
+		if (m_fence->GetCompletedValue() < m_fenceValue[m_frameIndex])
+		{
+			m_fence->SetEventOnCompletion(m_fenceValue[m_frameIndex], m_fenceEvent);
+			WaitForSingleObject(m_fenceEvent, INFINITE);
+		}
+
+		return m_commands[m_frameIndex];
+	}
+
+	DeviceResultType D3D12Device::EndFrame(std::span<ISwapChain*> swapchains)
+	{
+		ICommandList* commandList = m_commands[m_frameIndex];
+
+		ID3D12CommandList* lists[] = {static_cast<D3D12CommandList*>(commandList)->commandList};
+		m_queue->ExecuteCommandLists(1, lists);
+
+		u64 signalValue = m_nextFenceValue++;
+		m_queue->Signal(m_fence, signalValue);
+		m_fenceValue[m_frameIndex] = signalValue;
+
+		for (ISwapChain* swapchain : swapchains)
+		{
+			if (FAILED(static_cast<D3D12Swapchain*>(swapchain)->Present()))
+			{
+				spdlog::error("[D3D12] - Error on SubmitAndPresent - failed to Present");
+				return DeviceResult::PresentFailed;
+			}
+		}
+
+		m_frameIndex = (m_frameIndex + 1) % AV_FRAMES_IN_FLIGHT;
+
+		return DeviceResult::Success;
 	}
 }

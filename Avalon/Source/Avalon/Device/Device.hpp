@@ -4,11 +4,10 @@
 #include <string_view>
 
 #include "Avalon/Common.hpp"
+#include "Avalon/Core/Math.hpp"
 
 namespace Avalon
 {
-	class IRenderPass;
-
 	namespace DeviceType
 	{
 		constexpr static u8 None = 0;
@@ -23,13 +22,29 @@ namespace Avalon
 		constexpr static DeviceResultType Success = 0;
 		constexpr static DeviceResultType UnknownDeviceType = 1;
 		constexpr static DeviceResultType UnknownError = 2;
+		constexpr static DeviceResultType PresentFailed = 0;
 	}
+
+	enum class LoadOp
+	{
+		Load,
+		Clear,
+		DontCare
+	};
+
+	enum class StoreOp
+	{
+		Store,
+		DontCare
+	};
 
 	struct SwapchainDesc
 	{
 		VoidPtr nativeWindow;
 		u32     width;
 		u32     height;
+		bool    vsync = true;
+		bool    allowTearing = false;
 	};
 
 	struct ViewportInfo
@@ -47,11 +62,6 @@ namespace Avalon
 		//TODO
 	};
 
-	struct BeginRenderPassInfo
-	{
-		IRenderPass* renderPass;
-	};
-
 	class IAdapter
 	{
 	public:
@@ -61,11 +71,44 @@ namespace Avalon
 		virtual ~IAdapter() = default;
 	};
 
+	class ITextureView
+	{
+	public:
+	protected:
+		virtual ~ITextureView() = default;
+	};
+
+	class ITexture
+	{
+	public:
+		virtual ITextureView* GetView() = 0;
+		virtual void          Destroy() = 0;
+	protected:
+		virtual ~ITexture() = default;
+	};
+
+
+	struct RenderPassColorInfo
+	{
+		ITextureView* view = nullptr;
+		LoadOp        loadOp = LoadOp::DontCare;
+		StoreOp       storeOp = StoreOp::DontCare;
+		Vec4f         clearColor{};
+	};
+
+	struct BeginRenderPassInfo
+	{
+		Rect area = Rect{};
+		std::span<RenderPassColorInfo> colors;
+	};
+
 	class ISwapChain
 	{
 	public:
-		virtual void Destroy() = 0;
+		virtual u32       AcquireNextImage() = 0;
+		virtual ITexture* GetBackBuffer(u32 index) = 0;
 
+		virtual void Destroy() = 0;
 	protected:
 		virtual ~ISwapChain() = default;
 	};
@@ -90,25 +133,19 @@ namespace Avalon
 	};
 
 
-	class IRenderPass
-	{
-	public:
-	private:
-	};
-
-
 	class IDevice
 	{
 	public:
 		virtual DeviceResultType Init(bool enableDebugLayers) = 0;
 		virtual DeviceResultType CreateDevice(IAdapter* selectedAdapter) = 0;
 		virtual DeviceResultType Destroy() = 0;
+		virtual void             WaitIdle() = 0;
+
+		virtual ICommandList*    BeginFrame() = 0;
+		virtual DeviceResultType EndFrame(std::span<ISwapChain*> swapchains) = 0;
 
 		virtual ISwapChain*   CreateSwapChain(const SwapchainDesc& swachainDesc) = 0;
-		virtual IRenderPass*  CreateRenderPass(const RenderPassDesc& renderPassDesc) = 0;
 		virtual ICommandList* CreateCommandList() = 0;
-
-		virtual DeviceResultType SubmitAndPresent(ICommandList* commandList, ISwapChain* swapChain) = 0;
 
 		virtual std::span<IAdapter*> Adapters() = 0;
 

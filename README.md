@@ -18,6 +18,17 @@ lighting data to be baked ahead of time when that is the better tradeoff.
 > foundation stage and does not yet include the full renderer described in the
 > roadmap below.
 
+## Motivation
+
+Since 2021, I've been working on [Skore](https://github.com/SkoreEngine/Skore),
+a general-purpose 3D/2D engine and my main project to date. The trouble with 
+building a general-purpose engine is that, beyond being a colossal undertaking 
+on its own, it rarely leaves room to focus on rendering—or to experiment with 
+new techniques—the way I'd like. For an engine like Skore, a simple, reliable 
+renderer is usually the right call over experimental ones.
+
+That's where **Avalon** comes in: a project that gives me the outlet I need for those experiments.
+
 ## Planned Systems
 
 - Render hardware interface and backend resource management.

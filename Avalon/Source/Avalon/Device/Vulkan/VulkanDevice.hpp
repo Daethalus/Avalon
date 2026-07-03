@@ -1,6 +1,5 @@
 #pragma once
-#include "Avalon/Device/IDevice.hpp"
-
+#include "Avalon/Device/Device.hpp"
 
 
 namespace Avalon

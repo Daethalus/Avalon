@@ -2,7 +2,7 @@
 
 #include <SDL3/SDL.h>
 
-#include "Avalon/Device/IDevice.hpp"
+#include "Avalon/Device/Device.hpp"
 #include "spdlog/spdlog.h"
 
 constexpr bool enableDebugLayers = true;
@@ -69,14 +69,6 @@ namespace Avalon
 			return 1;
 		}
 
-		RenderPassDesc renderPassDesc = {};
-		m_renderPass = m_device->CreateRenderPass(renderPassDesc);
-
-		for (int i = 0; i < AV_FRAMES_IN_FLIGHT; ++i)
-		{
-			m_commands[i] = m_device->CreateCommandList();
-		}
-
 		spdlog::info("Avalon viewer initialized successfully");
 
 		while (m_running)
@@ -94,11 +86,23 @@ namespace Avalon
 				}
 			}
 
-			ICommandList* cmd = m_commands[m_currentFrame];
+			ICommandList* cmd = m_device->BeginFrame();
 			cmd->Reset();
 
+			u32 imageIndex = m_swapchain->AcquireNextImage();
+
+			ITexture* backBuffer = m_swapchain->GetBackBuffer(imageIndex);
+
+			RenderPassColorInfo renderPassColorInfo{
+				.view = backBuffer->GetView(),
+				.loadOp = LoadOp::Clear,
+				.storeOp = StoreOp::Store,
+				.clearColor = {0.0, 0.2, 0.4, 1.0},
+			};
+
 			cmd->BeginRenderPass(BeginRenderPassInfo{
-				.renderPass = m_renderPass
+				.area = {0, 0, static_cast<u32>(width), static_cast<u32>(height)},
+				.colors = {&renderPassColorInfo, 1}
 			});
 
 			ViewportInfo viewportInfo;
@@ -113,16 +117,10 @@ namespace Avalon
 
 			cmd->Close();
 
-
-			m_device->SubmitAndPresent(cmd, m_swapchain);
-
-			m_currentFrame = (m_currentFrame + 1) % AV_FRAMES_IN_FLIGHT;
+			m_device->EndFrame({&m_swapchain, 1});
 		}
 
-		for (int i = 0; i < AV_FRAMES_IN_FLIGHT; ++i)
-		{
-			m_commands[i]->Destroy();
-		}
+		m_device->WaitIdle();
 
 		m_swapchain->Destroy();
 		m_device->Destroy();
