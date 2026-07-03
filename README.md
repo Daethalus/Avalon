@@ -23,8 +23,8 @@ lighting data to be baked ahead of time when that is the better tradeoff.
 Since 2021, I've been working on [Skore](https://github.com/SkoreEngine/Skore),
 a general-purpose 3D/2D engine and my main project to date. The trouble with 
 building a general-purpose engine is that, beyond being a colossal undertaking 
-on its own, it rarely leaves room to focus on rendering—or to experiment with 
-new techniques—the way I'd like. For an engine like Skore, a simple, reliable 
+on its own, it rarely leaves room to focus on rendering or to experiment with 
+new techniques the way I'd like. For an engine like Skore, a simple, reliable 
 renderer is usually the right call over experimental ones.
 
 That's where **Avalon** comes in: a project that gives me the outlet I need for those experiments.
